@@ -91,6 +91,7 @@ handle_pr() {
   local pr_number="$3"
   local branch="$4"
   local title="$5"
+  local author="$6"
 
   local repo_name
   repo_name="$(basename "$repo_path")"
@@ -100,9 +101,10 @@ handle_pr() {
   local worktree_path
   worktree_path="$(dirname "$repo_path")/$dir"
 
-  # Nombre de sesión tmux normalizado (igual que wt)
+  # Nombre de sesión tmux: <autor>_review_<numero>
   local session_name
-  session_name="${dir//[^[:alnum:]_-]/_}"
+  session_name="${author}_review_${pr_number}"
+  session_name="${session_name//[^[:alnum:]_-]/_}"
 
   echo "[$(date '+%H:%M:%S')] Nuevo PR #${pr_number} en ${repo}: ${title}"
   echo "  branch   : $branch"
@@ -164,7 +166,7 @@ process_repo() {
   prs=$(gh pr list \
     --repo "$repo" \
     --search "review-requested:@me is:open" \
-    --json number,title,headRefName \
+    --json number,title,headRefName,author \
     2>/dev/null) || return
 
   local count
@@ -173,10 +175,11 @@ process_repo() {
   [[ "$count" -eq 0 ]] && return
 
   while IFS= read -r pr; do
-    local pr_number title branch
+    local pr_number title branch author
     pr_number=$(echo "$pr" | jq -r '.number')
     title=$(echo "$pr" | jq -r '.title')
     branch=$(echo "$pr" | jq -r '.headRefName')
+    author=$(echo "$pr" | jq -r '.author.login')
 
     # Verificar que el usuario está en requested_reviewers (asignación directa, no por team)
     local direct_reviewers
@@ -188,7 +191,7 @@ process_repo() {
     fi
 
     if ! is_processed "$repo" "$pr_number"; then
-      handle_pr "$repo_path" "$repo" "$pr_number" "$branch" "$title"
+      handle_pr "$repo_path" "$repo" "$pr_number" "$branch" "$title" "$author"
     fi
   done < <(echo "$prs" | jq -c '.[]')
 }
