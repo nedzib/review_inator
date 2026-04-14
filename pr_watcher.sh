@@ -154,7 +154,7 @@ process_repo() {
     return
   }
 
-  # PRs donde me pidieron review y están abiertos
+  # PRs donde me pidieron review directamente
   local prs
   prs=$(gh pr list \
     --repo "$repo" \
@@ -180,8 +180,55 @@ process_repo() {
 }
 
 # -----------------------------------------------------------------------------
+# Seed: marca los PRs abiertos actuales como ya procesados sin lanzar nada
+# -----------------------------------------------------------------------------
+seed_existing_prs() {
+  echo "Marcando PRs existentes en el log (no se procesarán)..."
+  local seeded=0
+
+  for repo_path in "${REPOS[@]}"; do
+    if [[ ! -d "$repo_path" ]]; then
+      echo "  [SKIP] Directorio no encontrado: $repo_path"
+      continue
+    fi
+
+    local repo
+    repo=$(cd "$repo_path" && gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null) || {
+      echo "  [SKIP] No se pudo leer el repo en $repo_path"
+      continue
+    }
+
+    local prs
+    prs=$(gh pr list \
+      --repo "$repo" \
+      --search "review-requested:@me is:open" \
+      --json number,title,headRefName \
+      2>/dev/null) || continue
+
+    while IFS= read -r pr; do
+      local pr_number branch
+      pr_number=$(echo "$pr" | jq -r '.number')
+      branch=$(echo "$pr" | jq -r '.headRefName')
+
+      if ! is_processed "$repo" "$pr_number"; then
+        log_pr "$repo" "$pr_number" "$branch" "seeded" "seeded"
+        echo "  Marcado: $repo #${pr_number} ($branch)"
+        (( seeded++ )) || true
+      fi
+    done < <(echo "$prs" | jq -c '.[]')
+  done
+
+  echo "Seed completo — $seeded PRs marcados. Solo los nuevos serán procesados."
+}
+
+# -----------------------------------------------------------------------------
 # Loop principal
 # -----------------------------------------------------------------------------
+if [[ "${1:-}" == "--seed" ]]; then
+  seed_existing_prs
+  exit 0
+fi
+
 echo "=================================================="
 echo " PR Watcher iniciado"
 echo " Config  : $CONFIG_FILE"

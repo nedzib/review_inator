@@ -89,6 +89,10 @@ case "${1:-install}" in
   install)
     echo "Instalando PR Watcher..."
     create_config
+    echo ""
+    echo "Marcando PRs existentes (se omitirán al arrancar)..."
+    /bin/zsh -l -c "$SCRIPT_PATH --seed"
+    echo ""
     generate_plist
     launchctl load "$PLIST_DST"
     echo ""
