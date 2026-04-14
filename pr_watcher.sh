@@ -31,6 +31,12 @@ done
 POLL_INTERVAL=$(jq -r '.poll_interval // 60' "$CONFIG_FILE")
 CLAUDE_PROMPT=$(jq -r '.claude_prompt' "$CONFIG_FILE")
 
+# Login del usuario autenticado en gh (para filtrar asignaciones directas)
+GH_LOGIN=$(gh api user --jq .login 2>/dev/null) || {
+  echo "[ERROR] No se pudo obtener el usuario de gh (¿está autenticado?)"
+  exit 1
+}
+
 REPOS=()
 while IFS= read -r repo; do
   REPOS+=("$repo")
@@ -173,6 +179,15 @@ process_repo() {
     title=$(echo "$pr" | jq -r '.title')
     branch=$(echo "$pr" | jq -r '.headRefName')
 
+    # Verificar que el usuario está en requested_reviewers (asignación directa, no por team)
+    local direct_reviewers
+    direct_reviewers=$(gh api "repos/${repo}/pulls/${pr_number}" \
+      --jq '[.requested_reviewers[].login]' 2>/dev/null) || direct_reviewers="[]"
+
+    if ! echo "$direct_reviewers" | jq -e --arg u "$GH_LOGIN" 'index($u) != null' &>/dev/null; then
+      continue
+    fi
+
     if ! is_processed "$repo" "$pr_number"; then
       handle_pr "$repo_path" "$repo" "$pr_number" "$branch" "$title"
     fi
@@ -209,6 +224,14 @@ seed_existing_prs() {
       local pr_number branch
       pr_number=$(echo "$pr" | jq -r '.number')
       branch=$(echo "$pr" | jq -r '.headRefName')
+
+      local direct_reviewers
+      direct_reviewers=$(gh api "repos/${repo}/pulls/${pr_number}" \
+        --jq '[.requested_reviewers[].login]' 2>/dev/null) || direct_reviewers="[]"
+
+      if ! echo "$direct_reviewers" | jq -e --arg u "$GH_LOGIN" 'index($u) != null' &>/dev/null; then
+        continue
+      fi
 
       if ! is_processed "$repo" "$pr_number"; then
         log_pr "$repo" "$pr_number" "$branch" "seeded" "seeded"
