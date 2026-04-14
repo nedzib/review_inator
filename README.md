@@ -33,7 +33,6 @@ Edita `~/.review_inator.config` (JSON):
     "/Users/tu_usuario/code/otro_repo"
   ],
   "poll_interval": 60,
-  "path": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
   "claude_prompt": "Analiza este PR...\n\n1. Revisa los cambios\n2. Identifica bugs\n3. Evalúa calidad"
 }
 ```
@@ -42,8 +41,9 @@ Edita `~/.review_inator.config` (JSON):
 |---|---|
 | `repos` | Paths absolutos a los repos que quieres observar |
 | `poll_interval` | Segundos entre cada chequeo (default 60) |
-| `path` | PATH que usará el daemon para encontrar `gh`, `claude`, etc. |
 | `claude_prompt` | Prompt inicial que Claude ejecuta al abrir cada PR. Usa `\n` para saltos de línea |
+
+El daemon corre con `zsh -l` (login shell), por lo que hereda exactamente el mismo `PATH` de tu terminal — no hay nada extra que configurar.
 
 Tras editar la config, reinicia el daemon:
 

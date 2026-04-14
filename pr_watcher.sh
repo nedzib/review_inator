@@ -28,9 +28,6 @@ for cmd in gh git jq tmux osascript; do
 done
 
 # Leer config
-EXTRA_PATH=$(jq -r '.path // ""' "$CONFIG_FILE")
-[[ -n "$EXTRA_PATH" ]] && export PATH="$EXTRA_PATH:$PATH"
-
 POLL_INTERVAL=$(jq -r '.poll_interval // 60' "$CONFIG_FILE")
 CLAUDE_PROMPT=$(jq -r '.claude_prompt' "$CONFIG_FILE")
 

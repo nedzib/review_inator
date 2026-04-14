@@ -29,7 +29,6 @@ create_config() {
     "/ruta/a/tu/repo"
   ],
   "poll_interval": 60,
-  "path": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
   "claude_prompt": "Acabas de recibir un PR para revisar. Por favor:\n\n1. Analiza los cambios con git diff origin/HEAD...HEAD\n2. Identifica posibles bugs, problemas de seguridad o edge cases\n3. Evalúa si el código sigue las convenciones del proyecto\n4. Genera un resumen estructurado con severidad: crítico / mayor / menor\n\nEmpieza leyendo los archivos modificados."
 }
 EOF
@@ -54,7 +53,9 @@ generate_plist() {
 
   <key>ProgramArguments</key>
   <array>
-    <string>/bin/bash</string>
+    <string>/bin/zsh</string>
+    <string>-l</string>
+    <string>-c</string>
     <string>${SCRIPT_PATH}</string>
   </array>
 
@@ -74,8 +75,6 @@ generate_plist() {
   <dict>
     <key>HOME</key>
     <string>${HOME}</string>
-    <key>PATH</key>
-    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
   </dict>
 
 </dict>
