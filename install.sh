@@ -7,7 +7,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPT_PATH="$SCRIPT_DIR/pr_watcher.sh"
+SCRIPT_SRC="$SCRIPT_DIR/pr_watcher.sh"
+
+# El script se instala en ~/.local/bin para evitar restricciones de TCC
+# que macOS aplica a ~/Documents cuando launchd intenta ejecutar archivos
+INSTALL_DIR="$HOME/.local/bin"
+SCRIPT_PATH="$INSTALL_DIR/pr_watcher.sh"
 
 PLIST_NAME="com.nedzib.pr_watcher.plist"
 PLIST_DST="$HOME/Library/LaunchAgents/$PLIST_NAME"
@@ -88,6 +93,10 @@ EOF
 case "${1:-install}" in
   install)
     echo "Instalando PR Watcher..."
+    mkdir -p "$INSTALL_DIR"
+    cp "$SCRIPT_SRC" "$SCRIPT_PATH"
+    chmod +x "$SCRIPT_PATH"
+    echo "  Script instalado en: $SCRIPT_PATH"
     create_config
     echo ""
     echo "Marcando PRs existentes (se omitirán al arrancar)..."
@@ -104,7 +113,7 @@ case "${1:-install}" in
 
   uninstall)
     launchctl unload "$PLIST_DST" 2>/dev/null || true
-    rm -f "$PLIST_DST"
+    rm -f "$PLIST_DST" "$SCRIPT_PATH"
     echo "Desinstalado."
     echo "  Config y logs en ~ se mantienen."
     echo "  Para borrarlos: rm ~/.review_inator.*"
@@ -113,6 +122,9 @@ case "${1:-install}" in
   restart)
     echo "Reiniciando PR Watcher..."
     launchctl unload "$PLIST_DST" 2>/dev/null || true
+    mkdir -p "$INSTALL_DIR"
+    cp "$SCRIPT_SRC" "$SCRIPT_PATH"
+    chmod +x "$SCRIPT_PATH"
     generate_plist
     launchctl load "$PLIST_DST"
     echo "Reiniciado."
