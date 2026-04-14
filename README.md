@@ -14,9 +14,9 @@ Daemon en bash que monitorea PRs de GitHub asignados a ti, crea un worktree por 
 ## Instalación
 
 ```bash
-git clone <repo> review_inator
+git clone https://github.com/nedzib/review_inator
 cd review_inator
-chmod +x pr_watcher.sh
+chmod +x pr_watcher.sh install.sh
 ```
 
 ## Configuración
@@ -42,11 +42,40 @@ EOF
 
 ## Uso
 
+### Opción A — launchd (recomendado)
+
+Corre en background desde el login, sin terminal abierta. Se reinicia automáticamente si el proceso muere.
+
 ```bash
-# Correr en foreground
+# Instalar y arrancar
+./install.sh
+
+# Desinstalar
+./install.sh uninstall
+
+# Reiniciar (tras cambios en config.sh)
+./install.sh restart
+
+# Verificar que está corriendo
+launchctl list | grep pr_watcher
+
+# Ver output en vivo
+tail -f launchd.out.log
+
+# Ver errores
+tail -f launchd.err.log
+```
+
+> Si `gh`, `claude` o `tmux` no están en `/opt/homebrew/bin` ni en `/usr/local/bin`,
+> ajusta el `PATH` dentro de `com.nedzib.pr_watcher.plist` antes de instalar.
+
+### Opción B — manual
+
+```bash
+# Foreground
 ./pr_watcher.sh
 
-# Correr en background dentro de tmux
+# Background en tmux
 tmux new-session -d -s pr-watcher -c "$(pwd)"
 tmux send-keys -t pr-watcher "./pr_watcher.sh" Enter
 
@@ -85,7 +114,11 @@ jq -s '.[] | select(.repo == "owner/repo")' pr_watcher.log
 
 ```
 review_inator/
-├── config.sh          # Configuración (repos, intervalo, prompt)
-├── pr_watcher.sh      # Script principal
-└── pr_watcher.log     # Estado/historial (generado automáticamente)
+├── config.sh                      # Configuración (repos, intervalo, prompt)
+├── pr_watcher.sh                  # Script principal
+├── install.sh                     # Instala/desinstala el launchd agent
+├── com.nedzib.pr_watcher.plist    # launchd plist (daemon macOS)
+├── pr_watcher.log                 # Estado/historial (generado automáticamente)
+├── launchd.out.log                # Stdout del daemon (generado automáticamente)
+└── launchd.err.log                # Stderr del daemon (generado automáticamente)
 ```
