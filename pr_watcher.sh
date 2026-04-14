@@ -130,8 +130,8 @@ handle_pr() {
     tmux new-session -d -s "$session_name" -c "$worktree_path"
   fi
 
-  # Abrir Claude interactivo — el prompt está en .pr_review_prompt
-  tmux send-keys -t "$session_name" "claude" Enter
+  # Abrir Claude interactivo con el prompt como primer mensaje
+  tmux send-keys -t "$session_name" 'claude "$(cat .pr_review_prompt)"' Enter
 
   # Registrar en el log
   log_pr "$repo" "$pr_number" "$branch" "$worktree_path" "$session_name"
