@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
 # =============================================================================
 # PR Watcher — Monitorea PRs asignados y abre Claude en un worktree + tmux
-# Uso: ./pr_watcher.sh
+# Config : ~/.review_inator.config
+# Log    : ~/.review_inator.log
+# Uso    : ./pr_watcher.sh
 # =============================================================================
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$SCRIPT_DIR/config.sh"
-LOG_FILE="$SCRIPT_DIR/pr_watcher.log"
+CONFIG_FILE="$HOME/.review_inator.config"
+LOG_FILE="$HOME/.review_inator.log"
 
 # -----------------------------------------------------------------------------
 # Validaciones iniciales
 # -----------------------------------------------------------------------------
-source "$CONFIG_FILE"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  echo "[ERROR] Config no encontrada: $CONFIG_FILE"
+  echo "  Ejecuta ./install.sh para crear una de ejemplo"
+  exit 1
+fi
 
 for cmd in gh git jq tmux osascript; do
   if ! command -v "$cmd" &>/dev/null; then
@@ -22,8 +27,20 @@ for cmd in gh git jq tmux osascript; do
   fi
 done
 
+# Leer config
+EXTRA_PATH=$(jq -r '.path // ""' "$CONFIG_FILE")
+[[ -n "$EXTRA_PATH" ]] && export PATH="$EXTRA_PATH:$PATH"
+
+POLL_INTERVAL=$(jq -r '.poll_interval // 60' "$CONFIG_FILE")
+CLAUDE_PROMPT=$(jq -r '.claude_prompt' "$CONFIG_FILE")
+
+REPOS=()
+while IFS= read -r repo; do
+  REPOS+=("$repo")
+done < <(jq -r '.repos[]' "$CONFIG_FILE")
+
 if [[ ${#REPOS[@]} -eq 0 ]]; then
-  echo "[ERROR] No hay repos configurados en config.sh"
+  echo "[ERROR] No hay repos configurados en $CONFIG_FILE"
   exit 1
 fi
 
@@ -111,8 +128,7 @@ handle_pr() {
   fi
 
   # Abrir Claude y enviar el prompt como primer mensaje
-  # Usamos comillas simples para que el $() se expanda en el shell del tmux,
-  # no en este script — así el prompt viaja limpio sin problemas de escaping
+  # Comillas simples: el $() se expande en el shell del tmux, no aquí
   tmux send-keys -t "$session_name" 'claude -p "$(cat .pr_review_prompt)"' Enter
 
   # Registrar en el log
@@ -171,7 +187,8 @@ process_repo() {
 # -----------------------------------------------------------------------------
 echo "=================================================="
 echo " PR Watcher iniciado"
-echo " Repos  : ${#REPOS[@]}"
+echo " Config  : $CONFIG_FILE"
+echo " Repos   : ${#REPOS[@]}"
 echo " Polling : cada ${POLL_INTERVAL}s"
 echo " Log     : $LOG_FILE"
 echo "=================================================="

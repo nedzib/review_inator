@@ -17,70 +17,57 @@ Daemon en bash que monitorea PRs de GitHub asignados a ti, crea un worktree por 
 git clone https://github.com/nedzib/review_inator
 cd review_inator
 chmod +x pr_watcher.sh install.sh
+./install.sh
 ```
+
+`install.sh` crea `~/.review_inator.config` con valores de ejemplo si no existe, genera el plist con los paths reales de tu sistema y lo carga en launchd.
 
 ## Configuración
 
-Edita `config.sh`:
+Edita `~/.review_inator.config` (JSON):
+
+```json
+{
+  "repos": [
+    "/Users/tu_usuario/code/mi_repo",
+    "/Users/tu_usuario/code/otro_repo"
+  ],
+  "poll_interval": 60,
+  "path": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+  "claude_prompt": "Analiza este PR...\n\n1. Revisa los cambios\n2. Identifica bugs\n3. Evalúa calidad"
+}
+```
+
+| Campo | Descripción |
+|---|---|
+| `repos` | Paths absolutos a los repos que quieres observar |
+| `poll_interval` | Segundos entre cada chequeo (default 60) |
+| `path` | PATH que usará el daemon para encontrar `gh`, `claude`, etc. |
+| `claude_prompt` | Prompt inicial que Claude ejecuta al abrir cada PR. Usa `\n` para saltos de línea |
+
+Tras editar la config, reinicia el daemon:
 
 ```bash
-# Repos a observar
-REPOS=(
-  "/Users/tu_usuario/code/mi_repo"
-  "/Users/tu_usuario/code/otro_repo"
-)
-
-# Segundos entre cada chequeo
-POLL_INTERVAL=60
-
-# Prompt inicial para Claude
-CLAUDE_PROMPT=$(cat <<'EOF'
-Analiza este PR...
-EOF
-)
+./install.sh restart
 ```
 
 ## Uso
 
-### Opción A — launchd (recomendado)
-
-Corre en background desde el login, sin terminal abierta. Se reinicia automáticamente si el proceso muere.
+```bash
+./install.sh           # instalar y arrancar
+./install.sh uninstall # desinstalar
+./install.sh restart   # reiniciar (tras cambios en config)
+```
 
 ```bash
-# Instalar y arrancar
-./install.sh
-
-# Desinstalar
-./install.sh uninstall
-
-# Reiniciar (tras cambios en config.sh)
-./install.sh restart
-
-# Verificar que está corriendo
+# Ver estado
 launchctl list | grep pr_watcher
 
 # Ver output en vivo
-tail -f launchd.out.log
+tail -f ~/.review_inator.out.log
 
 # Ver errores
-tail -f launchd.err.log
-```
-
-> Si `gh`, `claude` o `tmux` no están en `/opt/homebrew/bin` ni en `/usr/local/bin`,
-> ajusta el `PATH` dentro de `com.nedzib.pr_watcher.plist` antes de instalar.
-
-### Opción B — manual
-
-```bash
-# Foreground
-./pr_watcher.sh
-
-# Background en tmux
-tmux new-session -d -s pr-watcher -c "$(pwd)"
-tmux send-keys -t pr-watcher "./pr_watcher.sh" Enter
-
-# Ver los logs
-tail -f pr_watcher.log | jq .
+tail -f ~/.review_inator.err.log
 ```
 
 ## Qué hace cuando detecta un PR nuevo
@@ -90,35 +77,36 @@ tail -f pr_watcher.log | jq .
 3. Abre una sesión tmux con nombre `reponame_pr_<number>`
 4. Corre `claude` con el prompt configurado
 5. Notificación nativa de macOS
-6. Registra el PR en `pr_watcher.log` para no procesarlo dos veces
+6. Registra el PR en `~/.review_inator.log` para no procesarlo dos veces
 
 ## Log
 
-`pr_watcher.log` guarda un objeto JSON por línea (NDJSON):
+`~/.review_inator.log` guarda un objeto JSON por línea (NDJSON):
 
 ```json
 {"repo":"owner/repo","pr_number":42,"branch":"feature/foo","worktree":"/path/to/wt","session":"myrepo_pr_42","timestamp":"2026-04-14T10:00:00Z"}
 ```
 
-Para consultar el historial:
-
 ```bash
 # Todos los PRs procesados
-jq -s '.' pr_watcher.log
+jq -s '.' ~/.review_inator.log
 
 # Filtrar por repo
-jq -s '.[] | select(.repo == "owner/repo")' pr_watcher.log
+jq -s '.[] | select(.repo == "owner/repo")' ~/.review_inator.log
 ```
 
-## Estructura
+## Archivos
 
 ```
+# Repo (solo el código)
 review_inator/
-├── config.sh                      # Configuración (repos, intervalo, prompt)
-├── pr_watcher.sh                  # Script principal
-├── install.sh                     # Instala/desinstala el launchd agent
-├── com.nedzib.pr_watcher.plist    # launchd plist (daemon macOS)
-├── pr_watcher.log                 # Estado/historial (generado automáticamente)
-├── launchd.out.log                # Stdout del daemon (generado automáticamente)
-└── launchd.err.log                # Stderr del daemon (generado automáticamente)
+├── pr_watcher.sh   # Script principal
+├── install.sh      # Instalador (genera plist + config de ejemplo)
+└── README.md
+
+# Home (datos del usuario, fuera del repo)
+~/.review_inator.config    # Configuración (editar esto)
+~/.review_inator.log       # Historial de PRs procesados
+~/.review_inator.out.log   # Stdout del daemon
+~/.review_inator.err.log   # Stderr del daemon
 ```
