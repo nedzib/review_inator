@@ -1,6 +1,6 @@
 # review_inator
 
-<img width="1008" height="1040" alt="Adobe Express - file" src="https://github.com/user-attachments/assets/f398db66-c8a3-4efe-97a8-04767647acbe" />
+<img width="500" height="500" alt="Adobe Express - file" src="https://github.com/user-attachments/assets/f398db66-c8a3-4efe-97a8-04767647acbe" />
 
 Daemon en bash que monitorea PRs de GitHub asignados a ti, crea un worktree por PR, abre una sesión tmux y lanza Claude con un prompt de revisión configurable.
 
