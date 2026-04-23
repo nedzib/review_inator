@@ -75,7 +75,7 @@ tail -f ~/.review_inator.err.log
 ## Qué hace cuando detecta un PR nuevo
 
 1. Hace `fetch` de la rama del PR
-2. Crea un worktree en `../reponame_pr_<number>` (mismo patrón que `wt`)
+2. Crea un worktree en `../reponame_pr_<number>` y hace checkout a la rama real del PR
 3. Abre una sesión tmux con nombre `reponame_pr_<number>`
 4. Corre `claude` con el prompt configurado
 5. Notificación nativa de macOS

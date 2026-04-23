@@ -81,9 +81,8 @@ log_pr() {
 
 # -----------------------------------------------------------------------------
 # Worktree + tmux + Claude
-# Sigue la misma lógica que la función wt del zshrc:
-#   - worktree en ../  relativo al repo
-#   - session name = basename del worktree normalizado
+#   - worktree en ../ relativo al repo
+#   - worktree y sesión comparten el formato <pr_number>_<github_user>
 # -----------------------------------------------------------------------------
 handle_pr() {
   local repo_path="$1"
@@ -93,18 +92,18 @@ handle_pr() {
   local title="$5"
   local author="$6"
 
-  local repo_name
-  repo_name="$(basename "$repo_path")"
+  local pr_handle
+  pr_handle="${pr_number}_${author}"
+  pr_handle="${pr_handle//[^[:alnum:]_-]/_}"
 
-  # Nombre del directorio del worktree: ../reponame_pr_42
-  local dir="${repo_name}_pr_${pr_number}"
+  # Nombre del directorio del worktree: ../<pr_number>_<github_user>
+  local dir="$pr_handle"
   local worktree_path
   worktree_path="$(dirname "$repo_path")/$dir"
 
-  # Nombre de sesión tmux: <autor>_review_<numero>
+  # Nombre de sesión tmux: <pr_number>_<github_user>
   local session_name
-  session_name="${author}_review_${pr_number}"
-  session_name="${session_name//[^[:alnum:]_-]/_}"
+  session_name="$pr_handle"
 
   echo "[$(date '+%H:%M:%S')] Nuevo PR #${pr_number} en ${repo}: ${title}"
   echo "  branch   : $branch"
@@ -114,15 +113,30 @@ handle_pr() {
   # Fetch de la rama remota
   git -C "$repo_path" fetch origin "$branch" --quiet
 
-  # Crear worktree si no existe (rama ya existe en origin → usarla directamente)
+  # Crear worktree si no existe y dejarlo en la rama real del PR
   if [[ -d "$worktree_path" ]]; then
     echo "  [SKIP] Worktree ya existe, reutilizando"
   else
     git -C "$repo_path" worktree add \
-      -b "review/pr-${pr_number}" \
+      --detach \
       "$worktree_path" \
       "origin/${branch}"
+
+    if git -C "$repo_path" show-ref --verify --quiet "refs/heads/${branch}"; then
+      git -C "$worktree_path" switch "$branch"
+    else
+      git -C "$worktree_path" switch -c "$branch" --track "origin/${branch}"
+    fi
   fi
+
+  mkdir -p "$worktree_path/.claude"
+  cat > "$worktree_path/.claude/settings.local.json" <<'EOF'
+{
+  "permissions": {
+    "defaultMode": "auto"
+  }
+}
+EOF
 
   # Escribir el prompt en el worktree para que claude lo lea
   echo "$CLAUDE_PROMPT" > "$worktree_path/.pr_review_prompt"
