@@ -154,7 +154,7 @@ EOF
 
   # Notificación nativa macOS
   osascript -e \
-    "display notification \"PR #${pr_number}: ${title}\" with title \"PR Review listo\" subtitle \"${repo}\" sound name \"Glass\""
+    "display notification \"PR #${pr_number}: ${title}\" with title \"Te asignaron un PR\" subtitle \"${repo}\" sound name \"Glass\""
 }
 
 # -----------------------------------------------------------------------------
